@@ -8,13 +8,13 @@ from typing import Any, Optional
 
 from dbt.adapters.base.impl import BaseAdapter
 from dbt.config.runtime import RuntimeConfig
-from dbt.contracts.connection import AdapterResponse
+from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.flags import get_flags, Namespace
 
 from fal import FalServerlessHost, isolated
 from dbt.adapters.fal_experimental.utils.environments import (
     EnvironmentDefinition,
-    get_default_pip_dependencies
+    get_default_pip_dependencies,
 )
 
 from dbt.parser.manifest import MacroManifest, Manifest
@@ -57,6 +57,7 @@ def _isolated_runner(
     if local_packages is not None:
         if fal_scripts_path.exists():
             import shutil
+
             shutil.rmtree(fal_scripts_path)
         fal_scripts_path.parent.mkdir(parents=True, exist_ok=True)
         zip_file = zipfile.ZipFile(io.BytesIO(local_packages))
@@ -71,7 +72,7 @@ def run_in_environment_with_adapter(
     config: RuntimeConfig,
     manifest: Manifest,
     macro_manifest: MacroManifest,
-    adapter_type: str
+    adapter_type: str,
 ) -> AdapterResponse:
     """Run the 'main' function inside the given code on the
     specified environment.
@@ -82,17 +83,13 @@ def run_in_environment_with_adapter(
 
     is_remote = type(environment.host) is FalServerlessHost
 
-    deps = get_default_pip_dependencies(
-        is_remote=is_remote,
-        adapter_type=adapter_type)
+    deps = get_default_pip_dependencies(is_remote=is_remote, adapter_type=adapter_type)
 
     fal_scripts_path = get_fal_scripts_path(config)
 
     if is_remote and fal_scripts_path.exists():
         with NamedTemporaryFile() as temp_file:
-            with zipfile.ZipFile(
-                temp_file.name, "w", zipfile.ZIP_DEFLATED
-            ) as zip_file:
+            with zipfile.ZipFile(temp_file.name, "w", zipfile.ZIP_DEFLATED) as zip_file:
                 for entry in fal_scripts_path.rglob("*"):
                     zip_file.write(entry, entry.relative_to(fal_scripts_path))
 
@@ -105,7 +102,7 @@ def run_in_environment_with_adapter(
         config=config,
         manifest=manifest,
         macro_manifest=macro_manifest,
-        local_packages=compressed_local_packages
+        local_packages=compressed_local_packages,
     )
 
     if environment.kind == "local":
@@ -121,10 +118,7 @@ def run_in_environment_with_adapter(
         requirements = environment.config.get("requirements", [])
         requirements += deps
         isolated_function = isolated(
-            kind="virtualenv",
-            host=environment.host,
-            requirements=requirements,
-            **extra
+            kind="virtualenv", host=environment.host, requirements=requirements, **extra
         )(execute_model)
     elif environment.kind == "conda":
         dependencies = environment.config.pop("packages", [])
@@ -132,13 +126,10 @@ def run_in_environment_with_adapter(
         env_dict = {
             "name": "dbt_fal_env",
             "channels": ["conda-forge", "defaults"],
-            "dependencies": dependencies
+            "dependencies": dependencies,
         }
         isolated_function = isolated(
-            kind="conda",
-            host=environment.host,
-            env_dict=env_dict,
-            **extra
+            kind="conda", host=environment.host, env_dict=env_dict, **extra
         )(execute_model)
     else:
         # We should not reach this point, because environment types are validated when the

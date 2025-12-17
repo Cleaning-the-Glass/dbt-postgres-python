@@ -2,6 +2,7 @@ import abc
 import os
 from time import sleep
 import sys
+import multiprocessing
 from multiprocessing.synchronize import RLock
 from threading import get_ident
 from typing import (
@@ -17,14 +18,16 @@ from typing import (
     Callable,
 )
 
-from dbt.exceptions import (
-    NotImplementedError,
+from dbt_common.exceptions import NotImplementedError
+from dbt.adapters.exceptions import (
     InvalidConnectionError,
-    DbtInternalError,
-    CompilationError,
     FailedToConnectError,
 )
-from dbt.contracts.connection import (
+from dbt.exceptions import (
+    DbtInternalError,
+    CompilationError,
+)
+from dbt.adapters.contracts.connection import (
     Connection,
     Identifier,
     ConnectionState,
@@ -32,15 +35,14 @@ from dbt.contracts.connection import (
     LazyHandle,
     AdapterResponse,
 )
-from dbt.events import AdapterLogger
-from dbt.events.functions import fire_event
-from dbt.events.types import (
+from dbt.adapters.events.logging import AdapterLogger
+from dbt_common.events.functions import fire_event
+from dbt.adapters.events.types import (
     NewConnection,
     ConnectionReused,
     ConnectionLeftOpen,
     ConnectionClosed,
 )
-from dbt import flags
 
 SleepTime = Union[int, float]  # As taken by time.sleep.
 AdapterHandle = Any  # Adapter connection handle objects can be any class.
@@ -65,7 +67,7 @@ class PythonConnectionManager(metaclass=abc.ABCMeta):
             self.credentials = profile.python_adapter_credentials
 
         self.thread_connections: Dict[Hashable, Connection] = {}
-        self.lock: RLock = flags.MP_CONTEXT.RLock()
+        self.lock: RLock = multiprocessing.RLock()
 
     @staticmethod
     def get_thread_identifier() -> Hashable:

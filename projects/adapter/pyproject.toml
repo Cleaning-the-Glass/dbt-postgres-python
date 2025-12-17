@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dbt-postgres-python"
-version = "1.7.17a1"
+version = "1.10.0a1"
 description = "Run python scripts from any dbt project. This project is based on the project https://github.com/fal-ai/fal initially authored by FAL.AI."
 readme = "README.md"
 homepage = "https://github.com/kudryk/dbt-postgres-python"
@@ -16,16 +16,18 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-dbt-core = ">=1.7,<=1.7.16"
-pandas = "^1.5.3"
-numpy = "<2"
+python = "^3.10"
+dbt-core = ">=1.10,<1.11"
+dbt-adapters = ">=1.0.0"
+dbt-common = ">=1.0.0"
+pandas = ">=2.0"
+numpy = ">=2"
 
 ## Environment management related dependencies
 virtualenv = "^20.21.1"
 
 # dbt-fal
-sqlalchemy = "^1.4.52"
+sqlalchemy = ">=2.0"
 
 # Adapters
 
@@ -34,7 +36,7 @@ s3fs = { version = ">=2022.8.2", optional = true }
 
 # fal cloud
 packaging = ">=23"
-fal = "^0.10.0"
+fal = ">=1.0.0,<2.0.0"
 importlib-metadata = "^6.11.0"
 
 [tool.poetry.extras]

@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, NewType, Optional
 
 from dbt.config.runtime import RuntimeConfig
-from dbt.contracts.connection import AdapterResponse
+from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.flags import get_flags, Namespace
 
 from fal import FalServerlessHost, isolated

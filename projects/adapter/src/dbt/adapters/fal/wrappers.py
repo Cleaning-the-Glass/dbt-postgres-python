@@ -3,7 +3,7 @@ from typing import Any, Optional, Type, Set
 from dbt.adapters.factory import get_adapter_by_type
 from dbt.adapters.base.meta import available
 from dbt.adapters.base.impl import BaseAdapter
-from dbt.contracts.connection import Credentials
+from dbt.adapters.contracts.connection import Credentials
 from dbt.parser.manifest import ManifestLoader
 from dbt.clients.jinja import MacroGenerator
 

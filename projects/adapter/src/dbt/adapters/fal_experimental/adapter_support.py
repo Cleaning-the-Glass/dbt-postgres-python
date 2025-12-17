@@ -4,7 +4,7 @@ from typing import Any
 import pandas as pd
 from contextlib import contextmanager
 from dbt.adapters.base import BaseAdapter, BaseRelation, RelationType
-from dbt.adapters.base.connections import AdapterResponse, Connection
+from dbt.adapters.contracts.connection import AdapterResponse, Connection
 from dbt.config import RuntimeConfig
 from dbt.parser.manifest import MacroManifest, Manifest
 from dbt.flags import Namespace

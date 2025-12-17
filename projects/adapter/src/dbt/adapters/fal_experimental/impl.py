@@ -6,7 +6,7 @@ from typing import Iterator
 from dbt.adapters.base.impl import BaseAdapter
 from dbt.adapters.base.meta import AdapterMeta, available
 from dbt.adapters.base.relation import BaseRelation
-from dbt.contracts.connection import AdapterResponse
+from dbt.adapters.contracts.connection import AdapterResponse
 
 from dbt.fal.adapters.teleport.info import (
     TeleportInfo,

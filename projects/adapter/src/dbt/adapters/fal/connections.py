@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from dbt.adapters.fal_experimental.connections import FalCredentials
 
 

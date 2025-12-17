@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from typing import Any, Union
 
 from dbt.adapters.base.relation import BaseRelation
-from dbt.contracts.relation import ComponentName
+from dbt.adapters.contracts.relation import ComponentName
+
 
 @dataclass
 class TeleportInfo:
@@ -29,6 +30,7 @@ class TeleportInfo:
     def build_url(self, path: str) -> str:
         raise NotImplemented
 
+
 @dataclass
 class LocalTeleportInfo(TeleportInfo):
     base_dir: Path
@@ -42,6 +44,7 @@ class LocalTeleportInfo(TeleportInfo):
 
     def build_url(self, path: str):
         return self.base_dir / path
+
 
 # TODO: How to do Teleport Configuration
 # Will each adapter have to implement a specific case for each teleport backend.
@@ -70,4 +73,4 @@ class S3TeleportInfo(TeleportInfo):
     inner_path: str
 
     def build_url(self, path: str):
-        return f's3://{self.bucket}/{self.inner_path}/{path}'
+        return f"s3://{self.bucket}/{self.inner_path}/{path}"
