@@ -25,6 +25,7 @@ numpy = ">=2"
 
 ## Environment management related dependencies
 virtualenv = "^20.21.1"
+isolate = ">=0.12.2"
 
 # dbt-fal
 sqlalchemy = ">=2.0"
@@ -34,9 +35,7 @@ sqlalchemy = ">=2.0"
 # teleport
 s3fs = { version = ">=2022.8.2", optional = true }
 
-# fal cloud
 packaging = ">=23"
-fal = ">=1.0.0,<2.0.0"
 importlib-metadata = "^6.11.0"
 
 [tool.poetry.extras]

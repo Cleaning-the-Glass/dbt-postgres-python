@@ -1,22 +1,15 @@
 from __future__ import annotations
 
-import zipfile
-import io
 import functools
 import pandas as pd
-from functools import partial
-from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, NewType, Optional
+from typing import Any, Callable, Dict, NewType
 
 from dbt.config.runtime import RuntimeConfig
 from dbt.adapters.contracts.connection import AdapterResponse
-from dbt.flags import get_flags, Namespace
 
-from fal import FalServerlessHost, isolated
 from dbt.adapters.fal_experimental.connections import TeleportTypeEnum
 from dbt.adapters.fal_experimental.utils.environments import (
     EnvironmentDefinition,
-    get_default_pip_dependencies,
 )
 from dbt.adapters.fal_experimental.utils import (
     extra_path,
@@ -95,19 +88,10 @@ def run_with_teleport(
     teleport_info: TeleportInfo,
     locations: DataLocation,
     config: RuntimeConfig,
-    local_packages: Optional[bytes] = None,
 ) -> str:
     # main symbol is defined during dbt-fal's compilation
     # and acts as an entrypoint for us to run the model.
     fal_scripts_path = str(get_fal_scripts_path(config))
-    if local_packages is not None:
-        if fal_scripts_path.exists():
-            import shutil
-
-            shutil.rmtree(fal_scripts_path)
-        fal_scripts_path.parent.mkdir(parents=True, exist_ok=True)
-        zip_file = zipfile.ZipFile(io.BytesIO(local_packages))
-        zip_file.extractall(fal_scripts_path)
 
     with extra_path(fal_scripts_path):
         main = retrieve_symbol(code, "main")
@@ -134,59 +118,19 @@ def run_in_environment_with_teleport(
 
     The environment_name must be defined inside fal_project.yml file
     in your project's root directory."""
-    compressed_local_packages = None
-    is_remote = type(environment.host) is FalServerlessHost
 
-    deps = get_default_pip_dependencies(
-        is_remote=is_remote,
-        adapter_type=adapter_type,
-        is_teleport=True,
-    )
+    # Only local execution is supported
+    if environment.kind != "local":
+        raise NotImplementedError(
+            f"Environment kind '{environment.kind}' is not supported. "
+            "Only 'local' execution is available. Remote/cloud execution "
+            "via fal serverless has been removed."
+        )
 
-    fal_scripts_path = get_fal_scripts_path(config)
-
-    if is_remote and fal_scripts_path.exists():
-        with NamedTemporaryFile() as temp_file:
-            with zipfile.ZipFile(temp_file.name, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                for entry in fal_scripts_path.rglob("*"):
-                    zip_file.write(entry, entry.relative_to(fal_scripts_path))
-
-            compressed_local_packages = temp_file.read()
-
-    execute_model = partial(
-        run_with_teleport,
+    result = run_with_teleport(
         code=code,
         teleport_info=teleport_info,
         locations=locations,
         config=config,
-        local_packages=compressed_local_packages,
     )
-
-    if environment.kind == "virtualenv":
-        requirements = environment.config.get("requirements", [])
-        requirements += deps
-        isolated_function = isolated(
-            kind="virtualenv", host=environment.host, requirements=requirements
-        )(execute_model)
-    elif environment.kind == "conda":
-        dependencies = environment.config.pop("packages", [])
-        dependencies.append({"pip": deps})
-        env_dict = {
-            "name": "dbt_fal_env",
-            "channels": ["conda-forge", "defaults"],
-            "dependencies": dependencies,
-        }
-        isolated_function = isolated(
-            kind="conda", host=environment.host, env_dict=env_dict
-        )(execute_model)
-    else:
-        # We should not reach this point, because environment types are validated when the
-        # environment objects are created (in utils/environments.py).
-        raise Exception(f"Environment type not supported: {environment.kind}")
-
-    # Machine type is only applicable in FalServerlessHost
-    if is_remote:
-        isolated_function = isolated_function.on(machine_type=environment.machine_type)
-
-    result = isolated_function()
     return result
