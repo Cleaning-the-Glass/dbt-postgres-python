@@ -1,0 +1,34 @@
+---
+description: How to run and extend integration tests (Behave + docker-compose Postgres)
+globs:
+  - "projects/adapter/integration_tests/**"
+alwaysApply: true
+---
+
+## What these tests are
+
+- Integration tests are **Behave** BDD features that execute `dbt` via subprocess.
+- They validate that the `fal` adapter can run SQL + Python models against a real Postgres instance.
+
+## Running locally
+
+- From `projects/adapter/`:
+  - Activate virtualenv: `source .venv/bin/activate`
+  - Start Postgres: `docker compose -f integration_tests/docker-compose.yml up -d`
+  - Run tests: `behave integration_tests/features`
+
+## Test structure
+
+- **Features**: `projects/adapter/integration_tests/features/*.feature`
+- **Step definitions**: `projects/adapter/integration_tests/features/steps/fal_adapter_steps.py`
+- **Sample dbt projects**: `projects/adapter/integration_tests/projects/*`
+- **Profiles**: `projects/adapter/integration_tests/profiles/postgres/profiles.yml` (uses `type: fal` + `db_profile`)
+
+## Editing guidelines
+
+- Keep scenarios deterministic and fast. Prefer asserting:
+  - `dbt` exit code success/failure
+  - model execution order (via `target/run_results.json`)
+  - compiled SQL/Python output (via `target/run/...`)
+- If you introduce a new behavior or bugfix, add a new scenario first (or extend an existing one) to lock the behavior in.
+- Use `@skip` tags only when strictly necessary; avoid leaving permanent skips without a clear comment in the feature file.

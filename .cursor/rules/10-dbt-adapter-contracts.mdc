@@ -1,0 +1,52 @@
+---
+description: DBT adapter contract and architecture notes for the fal wrapper adapter
+globs:
+  - "projects/adapter/src/dbt/adapters/fal/**/*.py"
+  - "projects/adapter/src/dbt/adapters/fal_experimental/**/*.py"
+alwaysApply: true
+---
+
+## Adapter contract essentials (don't break these)
+
+- `FalEncAdapter.type()` must remain `"fal"`.
+- The plugin is exposed lazily via `dbt.adapters.fal.Plugin` inside `projects/adapter/src/dbt/adapters/fal/__init__.py` (via `__getattr__`). Keep that pattern to avoid expensive imports during dbt startup.
+
+## Credentials + profiles.yml expectations
+
+- `FalEncCredentials` adds `db_profile` which selects the underlying target in `profiles.yml`.
+- Keep this pattern working (used by integration tests and existing consumers):
+
+```yaml
+my_profile:
+  target: staging
+  outputs:
+    staging:
+      type: fal
+      db_profile: db
+    db:
+      type: postgres
+      ...
+```
+
+## Wrapper architecture (key for changes & debugging)
+
+- This adapter is a thin wrapper around the "real" adapter:
+  - `FalEncAdapter.__new__` picks underlying db credentials and registers the real adapter with `dbt.adapters.factory.FACTORY`
+  - `FalEncAdapterWrapper` proxies most calls to the underlying db adapter, but defines/overrides the Python execution hooks and `db_materialization`
+- The code temporarily releases `FACTORY.lock` while loading plugins / registering adapters. Be very careful editing that flow; subtle deadlocks can happen.
+
+## Isolated execution (important)
+
+- Some code paths must work **without reading `profiles.yml`**, e.g. in isolate/agent contexts (`isolate.connections.common.is_agent()`).
+- Any change must preserve:
+  - "works with profiles.yml parsing"
+  - "works without profiles.yml (credentials already bound)"
+
+## Removed features
+
+- **fal serverless/cloud execution has been removed**. The `fal` PyPI package dependency was removed to avoid its `cloudpickle==3.0.0` pin causing conflicts in downstream projects.
+- Only local Python execution is supported. Non-local environment kinds will raise `NotImplementedError`.
+
+## When you change adapter behavior
+
+- Add/extend a Behave scenario under `projects/adapter/integration_tests/features/` that asserts the behavior via `dbt run/debug`.

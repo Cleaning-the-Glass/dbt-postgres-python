@@ -2,26 +2,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 import importlib_metadata
 
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.exceptions import DbtRuntimeError
 from dbt.config.runtime import RuntimeConfig
 
-from isolate.backends import BaseEnvironment, BasicCallable, EnvironmentConnection
-from fal import FalServerlessKeyCredentials, LocalHost
-from fal.api import Host, FalServerlessHost
+from isolate.backends import BasicCallable, EnvironmentConnection
 
 from . import cache_static
 from .yaml_helper import load_yaml
 
 
 CONFIG_KEYS_TO_IGNORE = ["host", "remote_type", "type", "name", "machine_type"]
-REMOTE_TYPES_DICT = {
-    "venv": "virtualenv",
-    "conda": "conda",
-}
 
 logger = AdapterLogger("fal")
 
@@ -37,8 +31,14 @@ class LocalConnection(EnvironmentConnection):
 
 
 @dataclass
+class LocalHost:
+    """Local execution host - runs code in the current process."""
+    pass
+
+
+@dataclass
 class EnvironmentDefinition:
-    host: Host
+    host: LocalHost
     kind: str
     config: dict[Any, Any]
     machine_type: str = "S"
@@ -55,28 +55,6 @@ def fetch_environment(
     # Local is a special environment where it doesn't need to be defined
     # since it will mirror user's execution context directly.
     if environment_name == "local":
-        if credentials.host:
-            logger.warning(
-                "`local` environments will be executed on fal cloud."
-                + "If you don't want to use fal cloud, you can change your "
-                + "profile target to one where fal doesn't have credentials"
-            )
-            host = FalServerlessHost(
-                url=credentials.host,
-                credentials=FalServerlessKeyCredentials(
-                    credentials.key_id, credentials.key_secret
-                ),
-            )
-            return (
-                EnvironmentDefinition(
-                    host=host,
-                    kind="virtualenv",
-                    machine_type=machine_type,
-                    config={"name": "", "type": "venv"},
-                ),
-                False,
-            )
-
         return EnvironmentDefinition(host=LocalHost(), kind="local", config={}), True
 
     try:
@@ -154,15 +132,8 @@ def create_environment(
         key: val for key, val in config.items() if key not in CONFIG_KEYS_TO_IGNORE
     }
 
-    if credentials.key_secret and credentials.key_id:
-        host = FalServerlessHost(
-            url=credentials.host,
-            credentials=FalServerlessKeyCredentials(
-                credentials.key_id, credentials.key_secret
-            ),
-        )
-    else:
-        host = LocalHost()
+    # Always use local execution
+    host = LocalHost()
     return EnvironmentDefinition(
         host=host, kind=kind, config=parsed_config, machine_type=machine_type
     )
@@ -176,28 +147,6 @@ def _get_required_key(data: Dict[str, Any], name: str) -> Any:
     if name not in data:
         raise FalParseError("Missing required key: " + name)
     return data[name]
-
-
-def _parse_remote_config(
-    config: Dict[str, Any], parsed_config: Dict[str, Any]
-) -> Dict[str, Any]:
-    assert config.get("remote_type"), "remote_type needs to be specified."
-
-    remote_type = REMOTE_TYPES_DICT.get(config["remote_type"])
-
-    assert (
-        remote_type
-    ), f"{config['remote_type']} not recognised. Available remote types: {list(REMOTE_TYPES_DICT.keys())}"
-
-    env_definition = {
-        "kind": remote_type,
-        "configuration": parsed_config,
-    }
-
-    return {
-        "host": config.get("host"),
-        "target_environments": [env_definition],
-    }
 
 
 def _get_package_from_type(adapter_type: str):
@@ -232,22 +181,11 @@ def _get_dbt_packages(
     dbt_fal_suffix = ""
 
     if _version_is_prerelease(dbt_fal_version):
-        if is_remote:
-            # If it's a pre-release and it's remote, its likely us developing, so we try installing
-            # from Github and we can get the custom branch name from FAL_GITHUB_BRANCH environment variable
-            # TODO: Handle pre-release on PyPI. How should we approach that?
-            import os
-
-            branch_name = os.environ.get("FAL_GITHUB_BRANCH", "main")
-
-            dbt_fal_suffix = f" @ git+https://github.com/fal-ai/fal.git@{branch_name}#subdirectory=projects/adapter"
+        dbt_fal_path = _get_project_root_path("adapter")
+        if dbt_fal_path is not None:
+            # Can be a pre-release from PyPI
+            dbt_fal_dep = str(dbt_fal_path)
             dbt_fal_version = None
-        else:
-            dbt_fal_path = _get_project_root_path("adapter")
-            if dbt_fal_path is not None:
-                # Can be a pre-release from PyPI
-                dbt_fal_dep = str(dbt_fal_path)
-                dbt_fal_version = None
 
     dbt_fal = f"{dbt_fal_dep}[{' ,'.join(dbt_fal_extras)}]{dbt_fal_suffix}"
     yield dbt_fal, dbt_fal_version

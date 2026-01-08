@@ -1,0 +1,43 @@
+---
+description: Repo context and workflows for dbt-postgres-python (fal adapter for Postgres Python models)
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+## What this repo is
+
+- This is a fork of `dbt-fal` focused on **Postgres**. It provides a dbt adapter with `type: fal` that **wraps a real db adapter** (usually `postgres`) so dbt Python models can run in Postgres projects.
+- It's meant to be consumed as a dependency (e.g. from your `ctg-data-pipelines` repo), so treat changes like library changes: keep backwards compatibility and add tests for behavior changes.
+- **Note**: fal serverless/cloud execution features have been removed. Only local Python execution is supported.
+
+## Where to look first (high-signal entrypoints)
+
+- **Adapter plugin entrypoint** (lazy): `projects/adapter/src/dbt/adapters/fal/__init__.py`
+- **Adapter construction / registration**: `projects/adapter/src/dbt/adapters/fal/impl.py`
+- **Proxying + Python hooks**: `projects/adapter/src/dbt/adapters/fal/wrappers.py`
+- **Profiles.yml parsing for `db_profile`**: `projects/adapter/src/dbt/adapters/fal/load_db_profile.py`
+- **Credentials wrapper**: `projects/adapter/src/dbt/adapters/fal/connections.py`
+- **Supporting utilities**: `projects/adapter/src/dbt/adapters/fal_experimental/`
+- **Macros shipped with the adapter**: `projects/adapter/src/dbt/include/fal/`
+
+## Local dev workflow
+
+- Work from `projects/adapter/`
+- Create virtualenv: `python3 -m venv .venv && source .venv/bin/activate`
+- Install: `pip install -e ".[teleport]" && pip install behave matplotlib requests dbt-postgres`
+- Run dbt: `dbt --version`
+
+## Integration tests (Behave + docker-compose Postgres)
+
+- Start Postgres: `docker compose -f integration_tests/docker-compose.yml up -d`
+- Run: `behave integration_tests/features`
+- Tests shell out to `dbt` via subprocess.
+
+## Guardrails (avoid the common footguns)
+
+- Keep backwards compatibility for profiles using:
+  - `type: fal`
+  - `db_profile: <name-of-real-target>`
+- Avoid import-time side effects in adapter modules (dbt imports these a lot).
+- Prefer small, surgical changes; if you change runtime behavior, extend/add a Behave scenario under `projects/adapter/integration_tests/features/`.

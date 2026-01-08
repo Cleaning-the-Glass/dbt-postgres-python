@@ -1,0 +1,29 @@
+---
+description: Versioning/release guardrails (Poetry version + adapter __version__.py)
+globs:
+  - "projects/adapter/pyproject.toml"
+  - "projects/adapter/src/dbt/adapters/**/__version__.py"
+  - "cliff.toml"
+  - "projects/adapter/cliff.toml"
+alwaysApply: true
+---
+
+## Version sources (keep aligned on releases)
+
+- Package version is defined in: `projects/adapter/pyproject.toml`
+- Adapter runtime versions are defined in:
+  - `projects/adapter/src/dbt/adapters/fal/__version__.py`
+  - `projects/adapter/src/dbt/adapters/fal_experimental/__version__.py`
+
+If you bump versions for a release, update **all of the above** (and keep them consistent).
+
+## Compatibility guardrails
+
+- `projects/adapter/pyproject.toml` pins dbt compatibility (e.g. `dbt-core` range). Don’t widen/narrow those constraints without:
+  - checking dbt’s adapter interface changes for that range
+  - running integration tests
+  - updating docs
+
+## Changelog tooling
+
+- This repo uses `cliff.toml` (git-cliff). If you’re preparing a release, follow the existing commit/changelog conventions instead of hand-editing a changelog.

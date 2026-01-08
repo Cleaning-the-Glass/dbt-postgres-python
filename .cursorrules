@@ -1,0 +1,22 @@
+This repo is a Python library that implements a custom dbt adapter (`type: fal`) to enable dbt Python models on Postgres by wrapping a real db adapter selected via `db_profile`.
+
+Primary code locations:
+
+- Adapter implementation: `projects/adapter/src/dbt/adapters/fal/` and `projects/adapter/src/dbt/adapters/fal_experimental/`
+- Shipped macros: `projects/adapter/src/dbt/include/fal/`
+- Integration tests (Behave + docker-compose Postgres): `projects/adapter/integration_tests/`
+
+Development workflow:
+
+- Work from `projects/adapter/`
+- Create virtualenv: `python3 -m venv .venv && source .venv/bin/activate`
+- Install: `pip install -e ".[teleport]" && pip install behave matplotlib requests dbt-postgres`
+- Run dbt: `dbt --version`
+- Run integration tests: start Postgres with `docker compose -f integration_tests/docker-compose.yml up -d` then `behave integration_tests/features`
+
+Guardrails:
+
+- Keep `type: fal` + `db_profile` behavior working (backwards compatibility).
+- Avoid import-time side effects in adapter modules (dbt imports these frequently).
+- If you change runtime behavior, add/adjust a Behave scenario under `projects/adapter/integration_tests/features/`.
+- Note: fal serverless/cloud features have been removed. Only local Python execution is supported.
